@@ -48,9 +48,9 @@ These control the following commands '>'=recieve '<'=send:
 
 
 DigitalOut motorStep(p22);
-DigitalOut leftMotorDirection(p21);
+DigitalOut leftMotorDirection(p23);
 //DigitalOut enable(p21);
-DigitalOut rightMotorDirection(p23);
+DigitalOut rightMotorDirection(p21);
 Serial odroid(USBTX, USBRX);
 DigitalOut turnTableCR(p20);
 DigitalOut turnTable0(p19);
