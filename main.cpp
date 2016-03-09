@@ -48,19 +48,24 @@ These control the following commands '>'=recieve '<'=send:
 
 
 DigitalOut motorStep(p22);
-DigitalOut leftMotorDirection(p23);
+DigitalOut leftMotorDirection(p23);//These have a different header instead of power-pulse-direction it is power-direction-pulse (does not affect code)
 //DigitalOut enable(p21);
-DigitalOut rightMotorDirection(p21);
+DigitalOut rightMotorDirection(p21);//These have a different header instead of power-pulse-direction it is power-direction-pulse (does not affect code)
 Serial odroid(USBTX, USBRX);
-DigitalOut turnTableCR(p20);
-DigitalOut turnTable0(p19);
-DigitalOut turnTable1(p18);
-DigitalOut turnTable2(p17);
-DigitalOut turnTable3(p16);
+//DigitalOut turnTableCR(p20);
+//DigitalOut turnTable0(p19);
+//DigitalOut turnTable1(p18);
+//DigitalOut turnTable2(p17);
+//DigitalOut turnTable3(p16);
 Serial wrists(p13, p14);  // tx, rx
 Serial platter(p9, p10);  // tx, rx
 Serial lift  (p28, p27);
 DigitalOut arms (p12);
+
+DigitalOut led1(LED1);
+DigitalOut led2(LED2);
+DigitalOut led3(LED3);
+DigitalOut led4(LED4);
 
 #define oneDegree (2650.0/90.0)
 #define oneMM (2650.0/325.0)
@@ -71,11 +76,31 @@ DigitalOut arms (p12);
 int currentPlatter = 0;
 int currentSuck = 0;
 
+void setDirection(bool left, bool right){
+    if(!left){
+         leftMotorDirection.output();
+         leftMotorDirection = 0;
+    }
+    else{
+        leftMotorDirection.input();    
+    }
+    if(right){
+         rightMotorDirection.output();
+         rightMotorDirection = 0;
+    }
+    else{
+        rightMotorDirection.input();    
+    }
+}
+
 void turnBy(float angle, bool direction)
 {
+    led1=0;
+    led2=1;
+    led3=0;
+    led4=0;
     int stepsRemaining=(angle*oneDegree);
-    leftMotorDirection=direction;
-    rightMotorDirection=direction;
+    setDirection(direction, !direction);
     while(stepsRemaining!=0) {
         motorStep = 1;
         wait(stepTime);
@@ -87,9 +112,12 @@ void turnBy(float angle, bool direction)
 
 void driveBy(float distance, bool direction)
 {
+    led1=1;
+    led2=0;
+    led3=0;
+    led4=0;
     int stepsRemaining=(distance*oneMM);
-    leftMotorDirection=direction;
-    rightMotorDirection=!direction;
+    setDirection(direction, direction);
     while(stepsRemaining!=0) {
         motorStep = 1;
         wait(stepTime);
