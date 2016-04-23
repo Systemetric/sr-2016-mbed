@@ -1,8 +1,4 @@
 
-//-----------------------------------------------------------IMPORTANT!---------------------------------------------------
-//Arms are only 4cm then no further. Once at this point they do not go back in
-
-
 #include "mbed.h"
 #define WRISTS_0            0
 #define WRISTS_n90          1
@@ -25,8 +21,8 @@
 #define LIFT_42             1   
 #define LIFT_120            2
 
-#define SQUEEZE_IN             0
-#define SQUEEZE_OUT            1
+#define ARMS_IN             0
+#define ARMS_OUT            1
 
 /*
 These control the following commands '>'=recieve '<'=send:
@@ -42,11 +38,11 @@ These control the following commands '>'=recieve '<'=send:
 >G[1B]<!     grab            
 >g[1B]<!     release         
 
->T<!        turn turntable continuously
->0<!        turn turntable to position 0 (000deg)
->1<!        turn turntable to position 1 (090deg)
->2<!        turn turntable to position 2 (180deg)
->3<!        turn turntable to position 3 (270deg)
+>T<!        turn Platter continuously
+>0<!        turn Platter to position 0 (000deg)
+>1<!        turn Platter to position 1 (090deg)
+>2<!        turn Platter to position 2 (180deg)
+>3<!        turn Platter to position 3 (270deg)
 >P<!        suck
 >p<!        stopSucking
 */
@@ -57,15 +53,15 @@ DigitalInOut leftMotorDirection(p23);//These have a different header instead of 
 //DigitalOut enable(p21);
 DigitalInOut rightMotorDirection(p21);//These have a different header instead of power-pulse-direction it is power-direction-pulse (does not affect code)
 Serial odroid(USBTX, USBRX);
-//DigitalOut turnTableCR(p20);
-//DigitalOut turnTable0(p19);
-//DigitalOut turnTable1(p18);
-//DigitalOut turnTable2(p17);
-//DigitalOut turnTable3(p16);
+//DigitalOut PlatterCR(p20);
+//DigitalOut Platter0(p19);
+//DigitalOut Platter1(p18);
+//DigitalOut Platter2(p17);
+//DigitalOut Platter3(p16);
 Serial wrists(p13, p14);  // tx, rx
 Serial platter(p9, p10);  // tx, rx
 Serial lift  (p28, p27);
-DigitalOut squeeze (p12);
+DigitalOut arms (p12);
 
 DigitalOut led1(LED1);
 DigitalOut led2(LED2);
@@ -134,10 +130,9 @@ void driveBy(float distance, bool direction)
     }
 }
 
-void moveTurnTable(int mode)
+void movePlatter(int mode)
 {
     platter.putc(mode);
-    led2 = led2!;
 }
 
 //true: grab
@@ -145,12 +140,10 @@ void moveTurnTable(int mode)
 void grab(bool mode)
 {
     if(mode){
-        squeeze = SQUEEZE_IN;
-        led1 = 1;
+        arms = ARMS_IN;
     }
     else{
-        squeeze = SQUEEZE_OUT;
-        led1 = 2;    
+        arms = ARMS_OUT;    
     }  
 }
 
@@ -160,14 +153,20 @@ void liftTo(int mode)
     switch(mode)
     {
         case 0:
+            led1=0;
+            led2=0;
             led3=1;
             led4=0;
             break;
         case 1:
+            led1=0;
+            led2=0;
             led3=0;
             led4=1;
             break;
         case 2:
+            led1=0;
+            led2=0;
             led3=1;
             led4=1;
             break;   
@@ -183,8 +182,19 @@ int main() {
     wrists.baud(9600);
     platter.baud(9600);
     lift.baud(9600);
+    
+    wristsTo(2);
+    wait(1);
+    wristsTo(4);
+    wait(1);
+    wristsTo(0);
+    wait(1);
+    
+    liftTo(2);
+    
+    movePlatter(0);
+    
     //enable=1;
-    moveTurnTable(0);
     int payload;
     while (1) 
     {
@@ -245,37 +255,37 @@ int main() {
                 case 'T':
                     odroid.printf ("!");
                     currentPlatter = PLATTER_CR;
-                    moveTurnTable(currentSuck + currentPlatter);
+                    movePlatter(currentSuck | currentPlatter);
                     break;
                 case '0':
                     odroid.printf ("!");
                     currentPlatter = PLATTER_0;
-                    moveTurnTable(currentSuck + currentPlatter);
+                    movePlatter(currentSuck | currentPlatter);
                     break;
                 case '1':
                     odroid.printf ("!");
                     currentPlatter = PLATTER_90;
-                    moveTurnTable(currentSuck + currentPlatter);
+                    movePlatter(currentSuck | currentPlatter);
                     break;
                 case '2':
                     odroid.printf ("!");
                     currentPlatter = PLATTER_180;
-                    moveTurnTable(currentSuck + currentPlatter);
+                    movePlatter(currentSuck | currentPlatter);
                     break;
                 case '3':
                     odroid.printf ("!");
                     currentPlatter = PLATTER_270;
-                    moveTurnTable(currentSuck + currentPlatter);
+                    movePlatter(currentSuck | currentPlatter);
                     break;
                 case 'P':
                     odroid.printf ("!");
                     currentSuck = PLATTER_GRAB;
-                    moveTurnTable(currentSuck + currentPlatter);
+                    movePlatter(currentSuck | currentPlatter);
                     break;
                 case 'p':
                     odroid.printf ("!");
                     currentSuck = PLATTER_RELEASE;
-                    moveTurnTable(currentSuck + currentPlatter);
+                    movePlatter(currentSuck | currentPlatter);
                     break;
                 case 'G':
                     odroid.printf("'");
@@ -319,17 +329,17 @@ int main() {
     while(1)
     {
         wait(10);
-        squeeze=SQUEEZE_OUT;
+        arms=ARMS_OUT;
        // wrists.putc(WRISTS_90);
        // platter.putc(PLATTER_90);
         wait(4);
-        squeeze=SQUEEZE_IN;
+        arms=ARMS_IN;
         wait(5);
         //platter.putc(PLATTER_180);
         
         lift.putc(LIFT_120);
         wait(3);
-        squeeze=SQUEEZE_OUT;
+        arms=ARMS_OUT;
         wait(4);
         platter.putc(PLATTER_CR);
         lift.putc(LIFT_0);
@@ -337,11 +347,11 @@ int main() {
         lift.putc(LIFT_120);
         platter.putc(PLATTER_0);
         wait(3);
-        squeeze=SQUEEZE_IN;
+        arms=ARMS_IN;
         wait(4);
         lift.putc(LIFT_0);
         wait(4);
-        squeeze=SQUEEZE_OUT;
+        arms=ARMS_OUT;
                
     }
 }*/
