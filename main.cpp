@@ -24,6 +24,24 @@
 #define ARMS_IN             0
 #define ARMS_OUT            1
 
+#define oneDegree (2500.0/90.0)//was 2650.0-->2026
+#define oneMM (2650.0/325.0)
+#define stepTime 0.0003
+//2650 steps gives 180 degrees and 650mm straight line
+//2650 steps now gives 90 degrees and 325mm straight line
+
+#define START_STEPS_PER_SECOND 1000
+#define MAX_STEPS_PER_SECOND 9000
+#define FINISH_STEPS_PER_SECOND 1000
+
+#define STEPS_PER_SECOND_PER_SECOND 500
+#define STEPS_TO_INCREMENT 2
+
+#define STEPS_TO_ACCELERATE (MAX_STEPS_PER_SECOND * MAX_STEPS_PER_SECOND - START_STEPS_PER_SECOND * START_STEPS_PER_SECOND) / (2 * STEPS_TO_INCREMENT * STEPS_PER_SECOND_PER_SECOND)
+#define STEPS_TO_DECCELERATE (MAX_STEPS_PER_SECOND * MAX_STEPS_PER_SECOND - FINISH_STEPS_PER_SECOND * FINISH_STEPS_PER_SECOND) / (2 * STEPS_TO_INCREMENT * STEPS_PER_SECOND_PER_SECOND)
+
+#define TIME_BETWEEN_INCREMENTS 1000000/STEPS_PER_SECOND_PER_SECOND
+
 /*
 These control the following commands '>'=recieve '<'=send:
 >F[2B]<!<d   drive forwards  [distance in    mm]
@@ -68,11 +86,17 @@ DigitalOut led2(LED2);
 DigitalOut led3(LED3);
 DigitalOut led4(LED4);
 
-#define oneDegree (2500.0/90.0)//was 2650.0-->2026
-#define oneMM (2650.0/325.0)
-#define stepTime 0.0003
-//2650 steps gives 180 degrees and 650mm straight line
-//2650 steps now gives 90 degrees and 325mm straight line
+
+
+Ticker stepTimer;
+Ticker accelerationTimer;
+bool stepState;
+bool accelerate;
+int driveStepsRemaining;
+int stepsPerSecond;
+int stepsRemaining;
+int stepsRequired;
+void(*decFunction)(void);
 
 int currentPlatter = 0;
 int currentSuck = 0;
@@ -117,16 +141,68 @@ void turnBy(float angle, bool direction)
     }
 }
 
+void step()
+{
+    stepState = !stepState;
+    motorStep(stepState);
+    stepsRemaining -= 1;
+    if(accelerate && stepsRemaining <= STEPS_TO_DECCELERATE)
+    {
+        accelerationTimer.attach(decFunction, STEPS_TO_DECCELERATE);    
+    }
+    if (stepsRemaining <=0)
+    {
+        stepTimer.detach();
+        odroid.putc('d');
+    }
+}
+
+void incrementStepsPerSecond()
+{
+    if (stepsRemaining>stepsRequired - STEPS_TO_ACCELERATE)
+    {
+        stepsPerSecond += STEPS_TO_INCREMENT;
+        float timeBetweenSteps = 1000000 / stepsPerSecond;
+        
+        stepTimer.detach ();
+        stepTimer.attach_us(&step, timeBetweenSteps);
+    }
+    else{
+        accelerationTimer.detach();
+    }
+}
+
+void decrementStepsPerSecond()
+{
+    if (stepsRemaining>0)
+    {
+        stepsPerSecond -= STEPS_TO_INCREMENT;
+        float timeBetweenSteps = 1000000 / stepsPerSecond;
+        
+        stepTimer.detach();
+        stepTimer.attach_us(&step, timeBetweenSteps);
+    }
+    else{
+        accelerationTimer.detach();
+    }
+}
+
 void driveBy(float distance, bool direction)
 {
-    int stepsRemaining=(distance*oneMM);
+    stepsRequired = distance*oneMM;
+    stepsRemaining = stepsRequired;
+    stepState = 0;
+    decFunction = &decrementStepsPerSecond;
     setDirection(direction, direction);
-    while(stepsRemaining!=0) {
-        motorStep(1);
-        wait(stepTime);
-        motorStep(0);
-        wait(stepTime);
-        stepsRemaining=stepsRemaining-1;
+    
+    stepsPerSecond = START_STEPS_PER_SECOND;
+    float timeBetweenSteps = 1000000/stepsPerSecond;
+    
+    stepTimer.attach_us(&step, timeBetweenSteps);
+    accelerate = stepsRequired>STEPS_TO_ACCELERATE+STEPS_TO_DECCELERATE;
+    if (accelerate)
+    {
+        accelerationTimer.attach_us(&incrementStepsPerSecond, TIME_BETWEEN_INCREMENTS);
     }
 }
 
@@ -217,7 +293,6 @@ int main() {
                     payload = payload + odroid.getc();
                     odroid.printf ("!");
                     driveBy(payload,1);
-                    odroid.putc('d');
                     break;
                 case 'B':
                     led1=1;
@@ -228,7 +303,6 @@ int main() {
                     payload = payload + odroid.getc();
                     odroid.printf ("!");
                     driveBy(payload,0);
-                    odroid.putc('d');
                     break;
                 case 'R':
                     led1=1;
