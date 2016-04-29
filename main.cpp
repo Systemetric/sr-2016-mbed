@@ -14,15 +14,13 @@
 #define PLATTER_180         2
 #define PLATTER_270         3
 #define PLATTER_CR          4
-#define PLATTER_GRAB        128
-#define PLATTER_RELEASE     0
 
 #define LIFT_0              0
 #define LIFT_42             1   
 #define LIFT_120            2
 
-#define ARMS_IN             0
-#define ARMS_OUT            1
+#define SQUEEZE_IN          0
+#define SQUEEZE_OUT         1
 
 #define oneDegree (2500.0/90.0)//was 2650.0-->2026
 #define oneMM (2650.0/325.0)
@@ -50,10 +48,10 @@ These control the following commands '>'=recieve '<'=send:
 >L[2B]<!<d   turn left       [angle in       degrees]
 >R[2B]<!<d   turn right      [angle in       degrees]
 
->A[1B]<!<d   move arms       [0: 0, 1: 42, 2: 120]
+>A[1B]<!<d   move squeeze       [0: 0, 1: 42, 2: 120]
 >H[1B]<!<d   move hands      [0: 0, 1: -90, 2: 90, 3:60, 4: -120, 5: -30, 6: U1, 7: U2]
 
->G[1B]<!     grab            
+>G[1B]<!     squeeze            
 >g[1B]<!     release         
 
 >T<!        turn Platter continuously
@@ -67,19 +65,24 @@ These control the following commands '>'=recieve '<'=send:
 
 
 DigitalInOut motorStepPin(p22);
-DigitalInOut leftMotorDirection(p23);//These have a different header instead of power-pulse-direction it is power-direction-pulse (does not affect code)
-//DigitalOut enable(p21);
-DigitalInOut rightMotorDirection(p21);//These have a different header instead of power-pulse-direction it is power-direction-pulse (does not affect code)
+DigitalInOut leftMotorDirection(p21);//These have a different header instead of power-pulse-direction it is power-direction-pulse (does not affect code)
+DigitalInOut enable(p23); //active low
+DigitalInOut rightMotorDirection(p24);//These have a different header instead of power-pulse-direction it is power-direction-pulse (does not affect code)
 Serial odroid(USBTX, USBRX);
 //DigitalOut PlatterCR(p20);
 //DigitalOut Platter0(p19);
 //DigitalOut Platter1(p18);
 //DigitalOut Platter2(p17);
 //DigitalOut Platter3(p16);
-Serial wrists(p13, p14);  // tx, rx
+Serial wrists(p28, p27);  // tx, rx
+InterruptIn wristsReturn(p29);//guessed at value
 Serial platter(p9, p10);  // tx, rx
-Serial lift  (p28, p27);
-DigitalOut arms (p12);
+InterruptIn platterReturn(p11);//guessed at value
+Serial lift  (p13, p14);
+InterruptIn liftReturn(p15);//guessed at value
+DigitalOut squeeze (p12);
+InterruptIn squeezeReturn(p16);//guessed at value
+DigitalInOut pump(p25);
 
 DigitalOut led1(LED1);
 DigitalOut led2(LED2);
@@ -99,7 +102,19 @@ int stepsRequired;
 void(*decFunction)(void);
 
 int currentPlatter = 0;
-int currentSuck = 0;
+
+void setPin(DigitalInOut pin, bool state)
+{
+    if (state)
+    {
+        pin.input();
+    }
+    else
+    {
+        pin.output();
+        pin = 0;
+    }    
+}
 
 void setDirection(bool left, bool right){
     if(!left){
@@ -211,16 +226,26 @@ void movePlatter(int mode)
     platter.putc(mode);
 }
 
-//true: grab
+void returnPlatter()
+{
+    odroid.printf ("p");
+}
+
+//true: squeeze
 //false: release
-void grab(bool mode)
+void setSqueeze(bool mode)
 {
     if(mode){
-        arms = ARMS_IN;
+        squeeze = SQUEEZE_IN;
     }
     else{
-        arms = ARMS_OUT;    
+        squeeze = SQUEEZE_OUT;    
     }  
+}
+
+void returnSqueeze()
+{
+    odroid.printf ("s");
 }
 
 void liftTo(int mode)
@@ -249,15 +274,36 @@ void liftTo(int mode)
     }  
 }
 
+void returnLift()
+{
+    odroid.printf ("l");    
+}
+
 void wristsTo(int mode)
 {
     wrists.putc(mode);    
 }
 
+void returnWrists()
+{
+    odroid.printf ("w");
+}
+
+void setSuck(bool enable)
+{
+    setPin(pump, !enable);
+}
+
 int main() {
+    setSuck(0);
     wrists.baud(9600);
     platter.baud(9600);
     lift.baud(9600);
+    
+    wristsReturn.rise(&returnWrists);
+    liftReturn.rise(&returnLift);
+    squeezeReturn.rise(&returnSqueeze);
+    platterReturn.rise(&returnPlatter);
     
     wristsTo(2);
     wait(1);
@@ -329,45 +375,43 @@ int main() {
                 case 'T':
                     odroid.printf ("!");
                     currentPlatter = PLATTER_CR;
-                    movePlatter(currentSuck | currentPlatter);
+                    movePlatter(currentPlatter);
                     break;
                 case '0':
                     odroid.printf ("!");
                     currentPlatter = PLATTER_0;
-                    movePlatter(currentSuck | currentPlatter);
+                    movePlatter(currentPlatter);
                     break;
                 case '1':
                     odroid.printf ("!");
                     currentPlatter = PLATTER_90;
-                    movePlatter(currentSuck | currentPlatter);
+                    movePlatter(currentPlatter);
                     break;
                 case '2':
                     odroid.printf ("!");
                     currentPlatter = PLATTER_180;
-                    movePlatter(currentSuck | currentPlatter);
+                    movePlatter(currentPlatter);
                     break;
                 case '3':
                     odroid.printf ("!");
                     currentPlatter = PLATTER_270;
-                    movePlatter(currentSuck | currentPlatter);
+                    movePlatter(currentPlatter);
                     break;
                 case 'P':
                     odroid.printf ("!");
-                    currentSuck = PLATTER_GRAB;
-                    movePlatter(currentSuck | currentPlatter);
+                    setSuck(1);
                     break;
                 case 'p':
                     odroid.printf ("!");
-                    currentSuck = PLATTER_RELEASE;
-                    movePlatter(currentSuck | currentPlatter);
+                    setSuck(0);
                     break;
                 case 'G':
                     odroid.printf("'");
-                    grab(true);
+                    setSqueeze(true);
                     break;
                 case 'g':
                     odroid.printf("!");
-                    grab(false);
+                    setSqueeze(false);
                     break;
                 case 'A':
                     payload = odroid.getc();
@@ -389,44 +433,4 @@ int main() {
         }
     }
 }
- 
-
-  
-/*int main() {
-    wrists.baud(9600);
-    platter.baud(9600);
-    lift.baud(9600);
-    
-    
-    
-    
-    while(1)
-    {
-        wait(10);
-        arms=ARMS_OUT;
-       // wrists.putc(WRISTS_90);
-       // platter.putc(PLATTER_90);
-        wait(4);
-        arms=ARMS_IN;
-        wait(5);
-        //platter.putc(PLATTER_180);
-        
-        lift.putc(LIFT_120);
-        wait(3);
-        arms=ARMS_OUT;
-        wait(4);
-        platter.putc(PLATTER_CR);
-        lift.putc(LIFT_0);
-        wait(3);
-        lift.putc(LIFT_120);
-        platter.putc(PLATTER_0);
-        wait(3);
-        arms=ARMS_IN;
-        wait(4);
-        lift.putc(LIFT_0);
-        wait(4);
-        arms=ARMS_OUT;
-               
-    }
-}*/
 
