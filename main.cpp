@@ -40,6 +40,89 @@
 
 #define TIME_BETWEEN_INCREMENTS 1000000/STEPS_PER_SECOND_PER_SECOND
 
+#define C5 (1<<1)
+#define C4 (1<<2)
+#define C3 (1<<3)
+#define C2 (1<<4)
+#define C1 (1<<5)
+#define B5 (1<<6)
+#define B24 (1<<7)
+#define B3 (1<<9)
+#define B1 (1<<10)
+#define A1 (1<<11)
+#define A2 (1<<12)
+#define A3 (1<<13)
+#define A4 (1<<14)
+#define A5 (1<<15)
+
+// no M W Z, numbers start with N, XL/R/U/D for arrows
+#define CA A2+A3+A4+A5+B1+B3+C2+C3+C4+C5
+#define CB A1+A2+A3+A4+A5+B3+B5+C3+C4+C5
+#define CC A1+A2+A3+A4+A5+B1+B5+C1+C5
+#define CD A3+A4+A5+B3+B5+C1+C2+C3+C4+C5
+#define CE A1+A2+A3+A4+A5+B1+B3+B5+C1+C3+C5
+#define CF A1+A2+A3+A4+A5+B1+B3+C1
+#define CG A1+A2+A3+A5+B1+B3+B5+C1+C2+C3+C4+C5
+#define CH A1+A2+A3+A4+A5+B3+C1+C2+C3+C4+C5
+#define CI A1+A5+B1+B24+B3+B5+C1+C5
+#define CJ A1+A5+B1+B24+B3+B5+C1
+#define CK A1+A2+A3+A4+A5+B24+C1+C5
+#define CL C5+B5+A1+A2+A3+A4+A5
+#define CN A3+A4+A5+B3+C3+C4+C5
+#define CO A1+A2+A3+A4+A5+B1+B5+C1+C2+C3+C4+C5
+#define CP A1+A2+A3+A4+A5+B1+B3+C1+C2+C3
+#define CQ A1+A2+A3+B1+B3+C1+C2+C3
+#define CR A3+A4+A5+B3+C3
+#define CS C1+C3+C4+C5+B1+B3+B5+A1+A2+A3+A5
+#define CT A1+B1+B24+B3+B5+C1
+#define CU A1+A2+A3+A4+A5+B5+C1+C2+C3+C4+C5
+#define CV A1+A2+A3+A4+B5+C1+C2+C3+C4
+#define CX A1+A2+A4+A5+B3+C1+C2+C4+C5
+#define CY A1+B24+B3+B5+C1
+
+#define N0 A1+A2+A3+A4+A5+B1+B5+C1+C2+C3+C4+C5
+#define N1 A1+A5+B1+B24+B3+B5+C5
+#define N2 A1+A4+A5+B1+B3+B5+C1+C2+C5
+#define N3 A1+A3+A5+B1+B3+B5+C1+C2+C3+C4+C5
+#define N4 A1+A2+A3+B3+C1+C2+C3+C4+C5
+#define N5 A1+A2+A3+A5+B1+B3+B5+C1+C3+C4+C5
+#define N6 A1+A2+A3+A4+A5+B1+B3+B5+C1+C3+C4+C5
+#define N7 A1+B1+C1+C2+C3+C4+C5
+#define N8 A1+A2+A3+A4+A5+B1+B3+B5+C1+C2+C3+C4+C5
+#define N9 A1+A2+A3+B1+B3+C1+C2+C3+C4+C5
+
+#define XL A1+A5+B24+C3
+#define XR A3+B24+C1+C5
+#define XU A2+B1+B24+B3+B5+C2
+#define XD A4+B1+B24+B3+B5+C4
+#define XM A3+B3+C3
+
+#define ATLAS_WORD {spi.write(CA);spi.write(CT);spi.write(CL);spi.write(CA);spi.write(CS);STCP =1;wait(0.001);STCP =0;}
+#define STOP_WORD {spi.write(CS);spi.write(CT);spi.write(CO);spi.write(CP);spi.write(0);STCP =1;wait(0.001);STCP =0;}
+#define ATLAS_SCROLL {spi.write(CA);update_leds();wait (0.5);spi.write(CT);update_leds();wait (0.5);spi.write(CL);update_leds();wait (0.5);spi.write(CA);update_leds();wait (0.5);spi.write(CS);update_leds();wait (0.5);spi.write(0);spi.write(0);spi.write(0);spi.write(0);spi.write(0);STCP =1;wait(0.001);STCP =0;}
+#define LEFT_WORD {spi.write(XL);spi.write(0);spi.write(XL);spi.write(0);spi.write(XL);STCP =1;wait(0.001);STCP =0;}
+#define RIGHT_WORD {spi.write(XR);spi.write(0);spi.write(XR);spi.write(0);spi.write(XR);STCP=1;wait(0.001);STCP=0;}
+
+#define WRISTS_90_LEDS {spi.write(CH);spi.write(0);spi.write(0);spi.write(N9);spi.write(N0);STCP =1;wait(0.001);STCP =0;}
+#define WRISTS_n90_LEDS {spi.write(CH);spi.write(0);spi.write(CX);spi.write(N9);spi.write(N0);STCP =1;wait(0.001);STCP =0;}
+#define WRISTS_0_LEDS {spi.write(CH);spi.write(0);spi.write(0);spi.write(0);spi.write(N0);STCP =1;wait(0.001);STCP =0;}
+#define WRISTS_n180_LEDS {spi.write(CH);spi.write(CX);spi.write(N1);spi.write(N8);spi.write(N0);STCP =1;wait(0.001);STCP =0;}
+#define WRISTS_60_LEDS {spi.write(CH);spi.write(0);spi.write(0);spi.write(N6);spi.write(N0);STCP =1;wait(0.001);STCP =0;}
+#define WRISTS_n120_LEDS {spi.write(CH);spi.write(CX);spi.write(N1);spi.write(N2);spi.write(N0);STCP =1;wait(0.001);STCP =0;}
+#define WRISTS_n30_LEDS {spi.write(CH);spi.write(CX);spi.write(0);spi.write(N3);spi.write(N0);STCP =1;wait(0.001);STCP =0;}
+#define LIFT_0_LEDS {spi.write(XU);spi.write(0);spi.write(0);spi.write(0);spi.write(N0);STCP =1;wait(0.001);STCP =0;}
+#define LIFT_42_LEDS {spi.write(XU);spi.write(0);spi.write(0);spi.write(N4);spi.write(N2);STCP =1;wait(0.001);STCP =0;}
+#define LIFT_120_LEDS {spi.write(XU);spi.write(0);spi.write(N1);spi.write(N2);spi.write(N0);STCP =1;wait(0.001);STCP =0;}
+#define PLATTER_0_LEDS {spi.write(CP);spi.write(0);spi.write(0);spi.write(0);spi.write(N0);STCP =1;wait(0.001);STCP =0;}
+#define PLATTER_90_LEDS {spi.write(CP);spi.write(0);spi.write(0);spi.write(N9);spi.write(N0);STCP =1;wait(0.001);STCP =0;}
+#define PLATTER_180_LEDS {spi.write(CP);spi.write(0);spi.write(N1);spi.write(N8);spi.write(N0);STCP =1;wait(0.001);STCP =0;}
+#define PLATTER_270_LEDS {spi.write(CP);spi.write(0);spi.write(N2);spi.write(N7);spi.write(N0);STCP =1;wait(0.001);STCP =0;}
+#define PLATTER_CR_LEDS {spi.write(CP);spi.write(XR);spi.write(XR);spi.write(XR);spi.write(XR);STCP =1;wait(0.001);STCP =0;}
+
+#define SQUEEZE_IN_LEDS {spi.write(XR);spi.write(XR);spi.write(0);spi.write(XL);spi.write(XL);STCP =1;wait(0.001);STCP =0;}
+#define SQUEEZE_OUT_LEDS {spi.write(XL);spi.write(XL);spi.write(0);spi.write(XR);spi.write(XR);STCP =1;wait(0.001);STCP =0;}
+#define RESET_LEDS {spi.write(0);spi.write(0);spi.write(0);spi.write(0);spi.write(0);STCP =1;wait(0.001);STCP =0;}
+
 /*
 These control the following commands '>'=recieve '<'=send:
 >F[2B]<!<d   drive forwards  [distance in    mm]
@@ -48,19 +131,19 @@ These control the following commands '>'=recieve '<'=send:
 >L[2B]<!<d   turn left       [angle in       degrees]
 >R[2B]<!<d   turn right      [angle in       degrees]
 
->A[1B]<!<d   move squeeze       [0: 0, 1: 42, 2: 120]
->H[1B]<!<d   move hands      [0: 0, 1: -90, 2: 90, 3:60, 4: -120, 5: -30, 6: U1, 7: U2]
+>A[1B]<!<l   lift            [0: 0, 1: 42, 2: 120]
+>H[1B]<!<w   move wrists     [0: 0, 1: -90, 2: 90, 3:60, 4: -120, 5: -30, 6: U1, 7: U2]
 
->G[1B]<!     squeeze            
->g[1B]<!     release         
+>G[1B]<!<s   squeeze            
+>g[1B]<!<s   release         
 
->T<!        turn Platter continuously
->0<!        turn Platter to position 0 (000deg)
->1<!        turn Platter to position 1 (090deg)
->2<!        turn Platter to position 2 (180deg)
->3<!        turn Platter to position 3 (270deg)
->P<!        suck
->p<!        stopSucking
+>T<!         turn Platter continuously
+>0<!<p       turn Platter to position 0 (000deg)
+>1<!<p       turn Platter to position 1 (090deg)
+>2<!<p       turn Platter to position 2 (180deg)
+>3<!<p       turn Platter to position 3 (270deg)
+>P<!         suck
+>p<!         stopSucking
 */
 
 
@@ -103,6 +186,24 @@ void(*decFunction)(void);
 
 int currentPlatter = 0;
 
+
+SPI spi(p5, p6, p7); // mosi, miso, sclk
+DigitalOut STCP (p8);
+
+void update_leds()
+{
+    STCP =1;
+    wait(0.001);
+    STCP =0;
+}
+
+/*
+The output pins need to be 0V for low and 5V for high
+The MBED can only ouput 0V for low and 3.3V for high
+however the pins are pulled to 5V if left floating
+so to set the pins high they are set to inputs
+and to set the pins low they are set to low outputs
+*/
 void setPin(DigitalInOut pin, bool state)
 {
     if (state)
@@ -116,50 +217,73 @@ void setPin(DigitalInOut pin, bool state)
     }    
 }
 
+/*
+Sets the direction of the motors
+If the motors are not turning properly change the polarity
+of left and right in their if statements to acount for directional differences
+*/
 void setDirection(bool left, bool right){
     if(!left){
-         leftMotorDirection.output();
-         leftMotorDirection = 0;
+         setPin(leftMotorDirection, 0);
     }
     else{
-        leftMotorDirection.input();    
+         setPin(leftMotorDirection, 1); 
     }
     if(right){
-         rightMotorDirection.output();
-         rightMotorDirection = 0;
+         setPin(rightMotorDirection, 0);
     }
     else{
-        rightMotorDirection.input();    
+         setPin(rightMotorDirection, 1);  
     }
 }
 
-void motorStep(bool a){
-    if(a){
-         motorStepPin.output();
-         motorStepPin = 0;
-    }
-    else{
-        motorStepPin.input();    
-    }
+void setMotorEnable(bool isEnabled)
+{
+    setPin(enable, !isEnabled);
 }
 
+/*
+Turns to an angle in degrees
+If direction is 1 then turns clockwise
+If direction is 0 then turns counter clockwise
+*/
 void turnBy(float angle, bool direction)
 {
+    if(direction)
+    {
+        RIGHT_WORD
+    }
+    else
+    {
+        LEFT_WORD
+    }
+    
+    setMotorEnable(1);
     int stepsRemaining=(angle*oneDegree);
     setDirection(direction, !direction);
+    
     while(stepsRemaining!=0) {
-        motorStep(1);
+        setPin(motorStepPin, 1);
         wait(stepTime);
-        motorStep(0);
+        setPin(motorStepPin, 0);
         wait(stepTime);
         stepsRemaining=stepsRemaining-1;
     }
+    setMotorEnable(0);
+    RESET_LEDS
 }
 
+//-------------------------------------------------DRIVE AND ACCELERATION CODE------------------------------------------------------
+
+/*
+Function called on the step ticker to step forward 1
+Also checks to see if should start deceleration
+Detatched itself from ticker when max steps reached
+*/
 void step()
 {
     stepState = !stepState;
-    motorStep(stepState);
+    setPin(motorStepPin, stepState);
     stepsRemaining -= 1;
     if(accelerate && stepsRemaining <= STEPS_TO_DECCELERATE)
     {
@@ -169,9 +293,14 @@ void step()
     {
         stepTimer.detach();
         odroid.putc('d');
+        setMotorEnable(0);
     }
 }
 
+/*
+Increases the step rate when called on acceleration ticker
+detatches itself once max speed reached
+*/
 void incrementStepsPerSecond()
 {
     if (stepsRemaining>stepsRequired - STEPS_TO_ACCELERATE)
@@ -187,6 +316,10 @@ void incrementStepsPerSecond()
     }
 }
 
+/*
+Decreases the step rate on acceleration ticker
+detatches itself when end speed reached
+*/
 void decrementStepsPerSecond()
 {
     if (stepsRemaining>0)
@@ -202,8 +335,13 @@ void decrementStepsPerSecond()
     }
 }
 
+/*
+Sets up drive tickers and acceleration tickers if necessary
+Direction is true for forwards and false for backwards
+*/
 void driveBy(float distance, bool direction)
 {
+    setMotorEnable(1);
     stepsRequired = distance*oneMM;
     stepsRemaining = stepsRequired;
     stepState = 0;
@@ -221,31 +359,60 @@ void driveBy(float distance, bool direction)
     }
 }
 
+/*
+Tells pick to move the platter to a position (or contiuously)
+*/
 void movePlatter(int mode)
 {
     platter.putc(mode);
+    switch(mode){
+        case PLATTER_0:
+            PLATTER_0_LEDS
+            break;
+        case PLATTER_90:
+            PLATTER_90_LEDS
+            break;
+        case PLATTER_180:
+            PLATTER_180_LEDS
+            break;
+        case PLATTER_270:
+            PLATTER_270_LEDS
+            break;     
+    }
 }
 
+/*
+Called when platter returns
+Tells ODROID platter is done
+*/
 void returnPlatter()
 {
     odroid.printf ("p");
+    RESET_LEDS
 }
 
-//true: squeeze
-//false: release
+/*
+Tells pic to bring the arms in or out (squeeze mechanism)
+mode
+    true: squeeze
+    false: release
+*/
 void setSqueeze(bool mode)
 {
     if(mode){
         squeeze = SQUEEZE_IN;
+        SQUEEZE_IN_LEDS
     }
     else{
-        squeeze = SQUEEZE_OUT;    
+        squeeze = SQUEEZE_OUT;  
+        SQUEEZE_OUT_LEDS  
     }  
 }
 
 void returnSqueeze()
 {
     odroid.printf ("s");
+    RESET_LEDS
 }
 
 void liftTo(int mode)
@@ -253,40 +420,54 @@ void liftTo(int mode)
     lift.putc(mode);  
     switch(mode)
     {
-        case 0:
-            led1=0;
-            led2=0;
-            led3=1;
-            led4=0;
+        case LIFT_0:
+            LIFT_0_LEDS
             break;
-        case 1:
-            led1=0;
-            led2=0;
-            led3=0;
-            led4=1;
+        case LIFT_42:
+            LIFT_42_LEDS
             break;
-        case 2:
-            led1=0;
-            led2=0;
-            led3=1;
-            led4=1;
+        case LIFT_120:
+            LIFT_120_LEDS
             break;   
     }  
 }
 
 void returnLift()
 {
-    odroid.printf ("l");    
+    odroid.printf ("l"); 
+    RESET_LEDS   
 }
 
 void wristsTo(int mode)
 {
-    wrists.putc(mode);    
+    wrists.putc(mode);  
+    switch(mode)
+    {
+        case WRISTS_0:
+            WRISTS_0_LEDS
+            break;
+        case WRISTS_60:
+            WRISTS_60_LEDS
+            break;
+        case WRISTS_90:
+            WRISTS_90_LEDS
+            break;
+        case WRISTS_n30:
+            WRISTS_n30_LEDS
+            break;
+        case WRISTS_n90:
+            WRISTS_n90_LEDS
+            break;
+        case WRISTS_n120:
+            WRISTS_n120_LEDS
+            break;
+    }        
 }
 
 void returnWrists()
 {
     odroid.printf ("w");
+    RESET_LEDS
 }
 
 void setSuck(bool enable)
@@ -295,6 +476,7 @@ void setSuck(bool enable)
 }
 
 int main() {
+    setMotorEnable(0);
     setSuck(0);
     wrists.baud(9600);
     platter.baud(9600);
@@ -305,16 +487,8 @@ int main() {
     squeezeReturn.rise(&returnSqueeze);
     platterReturn.rise(&returnPlatter);
     
-    wristsTo(2);
-    wait(1);
-    wristsTo(4);
-    wait(1);
-    wristsTo(0);
-    wait(1);
+    ATLAS_SCROLL
     
-    liftTo(2);
-    
-    movePlatter(0);
     
     //enable=1;
     int payload;
