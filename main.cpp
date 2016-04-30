@@ -172,7 +172,10 @@ DigitalOut led2(LED2);
 DigitalOut led3(LED3);
 DigitalOut led4(LED4);
 
-
+bool wristsReturnFlag = 0;
+bool platterReturnFlag = 0;
+bool liftReturnFlag = 0;
+bool squeezeReturnFlag = 0;
 
 Ticker stepTimer;
 Ticker accelerationTimer;
@@ -239,7 +242,7 @@ void setDirection(bool left, bool right){
 
 void setMotorEnable(bool isEnabled)
 {
-    setPin(enable, !isEnabled);
+    setPin(enable, isEnabled);
 }
 
 /*
@@ -364,6 +367,7 @@ Tells pick to move the platter to a position (or contiuously)
 */
 void movePlatter(int mode)
 {
+    platterReturnFlag = 1;
     platter.putc(mode);
     switch(mode){
         case PLATTER_0:
@@ -387,8 +391,12 @@ Tells ODROID platter is done
 */
 void returnPlatter()
 {
-    odroid.printf ("p");
-    RESET_LEDS
+    if(platterReturnFlag)
+    {
+        platterReturnFlag = 0;
+        odroid.printf ("p");
+        RESET_LEDS
+    }
 }
 
 /*
@@ -399,6 +407,7 @@ mode
 */
 void setSqueeze(bool mode)
 {
+    squeezeReturnFlag = 1;
     if(mode){
         squeeze = SQUEEZE_IN;
         SQUEEZE_IN_LEDS
@@ -409,14 +418,26 @@ void setSqueeze(bool mode)
     }  
 }
 
+/*
+Called when squeeze mechanism returns
+Tells ODROID squeeze is done
+*/
 void returnSqueeze()
 {
-    odroid.printf ("s");
-    RESET_LEDS
+    if(platterReturnFlag)
+    {
+        platterReturnFlag = 0;
+        odroid.printf ("s");
+        RESET_LEDS
+    }
 }
 
+/*
+Lifts the arms to a position defined by mode
+*/
 void liftTo(int mode)
 {
+    liftReturnFlag = 1;
     lift.putc(mode);  
     switch(mode)
     {
@@ -434,12 +455,17 @@ void liftTo(int mode)
 
 void returnLift()
 {
-    odroid.printf ("l"); 
-    RESET_LEDS   
+    if(liftReturnFlag)
+    {
+        liftReturnFlag = 0;
+        odroid.printf ("l"); 
+        RESET_LEDS 
+    }  
 }
 
 void wristsTo(int mode)
 {
+    wristsReturnFlag = 1;
     wrists.putc(mode);  
     switch(mode)
     {
@@ -466,8 +492,12 @@ void wristsTo(int mode)
 
 void returnWrists()
 {
-    odroid.printf ("w");
-    RESET_LEDS
+    if(wristsReturnFlag)
+    {
+        wristsReturnFlag = 0;
+        odroid.printf ("w");
+        RESET_LEDS
+    }
 }
 
 void setSuck(bool enable)
