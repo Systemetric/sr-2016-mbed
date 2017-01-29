@@ -9,14 +9,14 @@
 #define WRISTS_unknown1     6
 #define WRISTS_unknown2     7
 
-#define PLATTER_0           0    
+#define PLATTER_0           0
 #define PLATTER_90          1
 #define PLATTER_180         2
 #define PLATTER_270         3
 #define PLATTER_CR          4
 
 #define LIFT_0              0
-#define LIFT_42             1   
+#define LIFT_42             1
 #define LIFT_120            2
 
 #define SQUEEZE_IN          0
@@ -24,11 +24,11 @@
 
 #define oneDegree (2500.0/90.0)//was 2650.0-->2026
 #define oneMM (2650.0/325.0)
-#define stepTime 0.0003
+#define stepTime 0.0001
 //2650 steps gives 180 degrees and 650mm straight line
 //2650 steps now gives 90 degrees and 325mm straight line
 
-#define START_STEPS_PER_SECOND 1000
+#define START_STEPS_PER_SECOND 3000
 #define MAX_STEPS_PER_SECOND 9000
 #define FINISH_STEPS_PER_SECOND 1000
 
@@ -134,8 +134,8 @@ These control the following commands '>'=recieve '<'=send:
 >A[1B]<!<l   lift            [0: 0, 1: 42, 2: 120]
 >H[1B]<!<w   move wrists     [0: 0, 1: -90, 2: 90, 3:60, 4: -120, 5: -30, 6: U1, 7: U2]
 
->G[1B]<!<s   squeeze            
->g[1B]<!<s   release         
+>G[1B]<!<s   squeeze
+>g[1B]<!<s   release
 
 >T<!         turn Platter continuously
 >0<!<p       turn Platter to position 0 (000deg)
@@ -172,10 +172,19 @@ DigitalOut led2(LED2);
 DigitalOut led3(LED3);
 DigitalOut led4(LED4);
 
-bool wristsReturnFlag = 0;
-bool platterReturnFlag = 0;
-bool liftReturnFlag = 0;
-bool squeezeReturnFlag = 0;
+//-------------------------------Flags------------------------------------------
+bool shouldWristsReturnFlag = 0;
+bool shouldPlatterReturnFlag = 0;
+bool shouldLiftReturnFlag = 0;
+bool shouldSqueezeReturnFlag = 0;
+
+bool returnDriveFlag = 0;
+bool returnPlatterFlag = 0;
+bool returnLiftFlag = 0;
+bool returnWristsFlag = 0;
+bool returnSqueezeFlag = 0;
+
+bool flagDecelerate = 0;
 
 Ticker stepTimer;
 Ticker accelerationTimer;
@@ -209,15 +218,12 @@ and to set the pins low they are set to low outputs
 */
 void setPin(DigitalInOut pin, bool state)
 {
-    if (state)
-    {
+    if (state) {
         pin.input();
-    }
-    else
-    {
+    } else {
         pin.output();
         pin = 0;
-    }    
+    }
 }
 
 /*
@@ -225,18 +231,17 @@ Sets the direction of the motors
 If the motors are not turning properly change the polarity
 of left and right in their if statements to acount for directional differences
 */
-void setDirection(bool left, bool right){
-    if(!left){
-         setPin(leftMotorDirection, 0);
+void setDirection(bool left, bool right)
+{
+    if(!left) {
+        setPin(leftMotorDirection, 0);
+    } else {
+        setPin(leftMotorDirection, 1);
     }
-    else{
-         setPin(leftMotorDirection, 1); 
-    }
-    if(right){
-         setPin(rightMotorDirection, 0);
-    }
-    else{
-         setPin(rightMotorDirection, 1);  
+    if(right) {
+        setPin(rightMotorDirection, 0);
+    } else {
+        setPin(rightMotorDirection, 1);
     }
 }
 
@@ -252,19 +257,16 @@ If direction is 0 then turns counter clockwise
 */
 void turnBy(float angle, bool direction)
 {
-    if(direction)
-    {
+    if(direction) {
         RIGHT_WORD
-    }
-    else
-    {
+    } else {
         LEFT_WORD
     }
-    
+
     setMotorEnable(1);
     int stepsRemaining=(angle*oneDegree);
-    setDirection(direction, !direction);
-    
+    setDirection(!direction, direction);
+
     while(stepsRemaining!=0) {
         setPin(motorStepPin, 1);
         wait(stepTime);
@@ -275,7 +277,21 @@ void turnBy(float angle, bool direction)
     setMotorEnable(0);
     RESET_LEDS
 }
-
+void driveBy(float distance, bool direction)
+{
+    int stepsRemaining=(distance*oneMM);
+    setDirection(direction, direction);
+    while(stepsRemaining!=0) {
+        setPin(motorStepPin, 1);
+        //led1=1;
+        wait(stepTime);
+        setPin(motorStepPin, 0);
+        //led1=0;
+        wait(stepTime);
+        stepsRemaining=stepsRemaining-1;
+    }
+    odroid.printf("d");
+}
 //-------------------------------------------------DRIVE AND ACCELERATION CODE------------------------------------------------------
 
 /*
@@ -288,14 +304,12 @@ void step()
     stepState = !stepState;
     setPin(motorStepPin, stepState);
     stepsRemaining -= 1;
-    if(accelerate && stepsRemaining <= STEPS_TO_DECCELERATE)
-    {
-        accelerationTimer.attach(decFunction, STEPS_TO_DECCELERATE);    
+    if(accelerate && stepsRemaining <= STEPS_TO_DECCELERATE) {
+        flagDecelerate = 1;
     }
-    if (stepsRemaining <=0)
-    {
+    if (stepsRemaining <=0) {
         stepTimer.detach();
-        odroid.putc('d');
+        returnDriveFlag = 1;
         setMotorEnable(0);
     }
 }
@@ -306,15 +320,13 @@ detatches itself once max speed reached
 */
 void incrementStepsPerSecond()
 {
-    if (stepsRemaining>stepsRequired - STEPS_TO_ACCELERATE)
-    {
+    if (stepsRemaining>stepsRequired - STEPS_TO_ACCELERATE) {
         stepsPerSecond += STEPS_TO_INCREMENT;
         float timeBetweenSteps = 1000000 / stepsPerSecond;
-        
+
         stepTimer.detach ();
         stepTimer.attach_us(&step, timeBetweenSteps);
-    }
-    else{
+    } else {
         accelerationTimer.detach();
     }
 }
@@ -325,15 +337,13 @@ detatches itself when end speed reached
 */
 void decrementStepsPerSecond()
 {
-    if (stepsRemaining>0)
-    {
+    if (stepsRemaining>0) {
         stepsPerSecond -= STEPS_TO_INCREMENT;
         float timeBetweenSteps = 1000000 / stepsPerSecond;
-        
+
         stepTimer.detach();
         stepTimer.attach_us(&step, timeBetweenSteps);
-    }
-    else{
+    } else {
         accelerationTimer.detach();
     }
 }
@@ -342,22 +352,22 @@ void decrementStepsPerSecond()
 Sets up drive tickers and acceleration tickers if necessary
 Direction is true for forwards and false for backwards
 */
-void driveBy(float distance, bool direction)
+void driveByNew(float distance, bool direction)
 {
     setMotorEnable(1);
-    stepsRequired = distance*oneMM;
+    stepsRequired = distance*oneMM*2;
     stepsRemaining = stepsRequired;
     stepState = 0;
     decFunction = &decrementStepsPerSecond;
     setDirection(direction, direction);
-    
+
     stepsPerSecond = START_STEPS_PER_SECOND;
     float timeBetweenSteps = 1000000/stepsPerSecond;
-    
+
     stepTimer.attach_us(&step, timeBetweenSteps);
     accelerate = stepsRequired>STEPS_TO_ACCELERATE+STEPS_TO_DECCELERATE;
-    if (accelerate)
-    {
+    //accelerate = false; //remove if deceleration ever works
+    if (accelerate) {
         accelerationTimer.attach_us(&incrementStepsPerSecond, TIME_BETWEEN_INCREMENTS);
     }
 }
@@ -367,9 +377,9 @@ Tells pick to move the platter to a position (or contiuously)
 */
 void movePlatter(int mode)
 {
-    platterReturnFlag = 1;
+    shouldPlatterReturnFlag = 1;
     platter.putc(mode);
-    switch(mode){
+    switch(mode) {
         case PLATTER_0:
             PLATTER_0_LEDS
             break;
@@ -381,7 +391,7 @@ void movePlatter(int mode)
             break;
         case PLATTER_270:
             PLATTER_270_LEDS
-            break;     
+            break;
     }
 }
 
@@ -391,9 +401,9 @@ Tells ODROID platter is done
 */
 void returnPlatter()
 {
-    if(platterReturnFlag)
-    {
-        platterReturnFlag = 0;
+    if(shouldPlatterReturnFlag) {
+        shouldPlatterReturnFlag = 0;
+        returnPlatterFlag = 1;
         odroid.printf ("p");
         RESET_LEDS
     }
@@ -407,15 +417,14 @@ mode
 */
 void setSqueeze(bool mode)
 {
-    squeezeReturnFlag = 1;
-    if(mode){
+    shouldSqueezeReturnFlag = 1;
+    if(mode) {
         squeeze = SQUEEZE_IN;
         SQUEEZE_IN_LEDS
+    } else {
+        squeeze = SQUEEZE_OUT;
+        SQUEEZE_OUT_LEDS
     }
-    else{
-        squeeze = SQUEEZE_OUT;  
-        SQUEEZE_OUT_LEDS  
-    }  
 }
 
 /*
@@ -424,10 +433,9 @@ Tells ODROID squeeze is done
 */
 void returnSqueeze()
 {
-    if(platterReturnFlag)
-    {
-        platterReturnFlag = 0;
-        odroid.printf ("s");
+    if(shouldSqueezeReturnFlag) {
+        shouldSqueezeReturnFlag = 0;
+        returnSqueezeFlag = 1;
         RESET_LEDS
     }
 }
@@ -437,10 +445,9 @@ Lifts the arms to a position defined by mode
 */
 void liftTo(int mode)
 {
-    liftReturnFlag = 1;
-    lift.putc(mode);  
-    switch(mode)
-    {
+    shouldLiftReturnFlag = 1;
+    lift.putc(mode);
+    switch(mode) {
         case LIFT_0:
             LIFT_0_LEDS
             break;
@@ -449,26 +456,25 @@ void liftTo(int mode)
             break;
         case LIFT_120:
             LIFT_120_LEDS
-            break;   
-    }  
+            break;
+    }
 }
 
 void returnLift()
 {
-    if(liftReturnFlag)
-    {
-        liftReturnFlag = 0;
-        odroid.printf ("l"); 
-        RESET_LEDS 
-    }  
+    if(shouldLiftReturnFlag) {
+        shouldLiftReturnFlag = 0;
+        returnLiftFlag = 1;
+        odroid.printf ("l");
+        RESET_LEDS
+    }
 }
 
 void wristsTo(int mode)
 {
-    wristsReturnFlag = 1;
-    wrists.putc(mode);  
-    switch(mode)
-    {
+    shouldWristsReturnFlag = 1;
+    wrists.putc(mode);
+    switch(mode) {
         case WRISTS_0:
             WRISTS_0_LEDS
             break;
@@ -487,14 +493,14 @@ void wristsTo(int mode)
         case WRISTS_n120:
             WRISTS_n120_LEDS
             break;
-    }        
+    }
 }
 
 void returnWrists()
 {
-    if(wristsReturnFlag)
-    {
-        wristsReturnFlag = 0;
+    if(shouldWristsReturnFlag) {
+        shouldWristsReturnFlag = 0;
+        returnWristsFlag= 1;
         odroid.printf ("w");
         RESET_LEDS
     }
@@ -505,135 +511,173 @@ void setSuck(bool enable)
     setPin(pump, !enable);
 }
 
-int main() {
+int main()
+{
+    led4 = 1;
     setMotorEnable(0);
     setSuck(0);
     wrists.baud(9600);
     platter.baud(9600);
     lift.baud(9600);
+    led3 = 0;
     
-    wristsReturn.rise(&returnWrists);
-    liftReturn.rise(&returnLift);
-    squeezeReturn.rise(&returnSqueeze);
-    platterReturn.rise(&returnPlatter);
+    spi.format(16,3);
+    spi.frequency(1000000);
+    STCP = 0;
     
-    ATLAS_SCROLL
-    
-    
+    wristsReturn.fall(&returnWrists);
+    liftReturn.fall(&returnLift);
+    squeezeReturn.fall(&returnSqueeze);
+    platterReturn.fall(&returnPlatter);
+
+//    ATLAS_SCROLL
+
+
     //enable=1;
     int payload;
-    while (1) 
-    {
-        if (odroid.getc()=='s') 
-        {
-            //found start character
-            //odroid.putc ('!');
-            switch (odroid.getc())
-            {
-                default:
-                    //didn't get an expected command
-                    odroid.putc('?');
-                    break;
-                case 'F':
-                    led1=1;
-                    led2=0;
-                    led3=0;
-                    led4=0;
-                    payload = odroid.getc()<<8;
-                    payload = payload + odroid.getc();
-                    odroid.printf ("!");
-                    driveBy(payload,1);
-                    break;
-                case 'B':
-                    led1=1;
-                    led2=0;
-                    led3=0;
-                    led4=1;
-                    payload = odroid.getc()<<8;
-                    payload = payload + odroid.getc();
-                    odroid.printf ("!");
-                    driveBy(payload,0);
-                    break;
-                case 'R':
-                    led1=1;
-                    led2=1;
-                    led3=0;
-                    led4=0;
-                    payload = odroid.getc()<<8;
-                    payload = payload + odroid.getc();
-                    odroid.printf ("!");
-                    turnBy(payload,1);
-                    odroid.putc('d');
-                    break;
-                case 'L':
-                    led1=1;
-                    led2=1;
-                    led3=0;
-                    led4=1;
-                    payload = odroid.getc()<<8;
-                    payload = payload + odroid.getc();
-                    odroid.printf ("!");
-                    turnBy(payload,0);
-                    odroid.putc('d');
-                    break;
-                case 'T':
-                    odroid.printf ("!");
-                    currentPlatter = PLATTER_CR;
-                    movePlatter(currentPlatter);
-                    break;
-                case '0':
-                    odroid.printf ("!");
-                    currentPlatter = PLATTER_0;
-                    movePlatter(currentPlatter);
-                    break;
-                case '1':
-                    odroid.printf ("!");
-                    currentPlatter = PLATTER_90;
-                    movePlatter(currentPlatter);
-                    break;
-                case '2':
-                    odroid.printf ("!");
-                    currentPlatter = PLATTER_180;
-                    movePlatter(currentPlatter);
-                    break;
-                case '3':
-                    odroid.printf ("!");
-                    currentPlatter = PLATTER_270;
-                    movePlatter(currentPlatter);
-                    break;
-                case 'P':
-                    odroid.printf ("!");
-                    setSuck(1);
-                    break;
-                case 'p':
-                    odroid.printf ("!");
-                    setSuck(0);
-                    break;
-                case 'G':
-                    odroid.printf("'");
-                    setSqueeze(true);
-                    break;
-                case 'g':
-                    odroid.printf("!");
-                    setSqueeze(false);
-                    break;
-                case 'A':
-                    payload = odroid.getc();
-                    odroid.printf("!");
-                    liftTo(payload);
-                    break;
-                case 'H':
-                    payload = odroid.getc();
-                    odroid.printf("!");
-                    wristsTo(payload);
-                    break;    
-            }
+    
+    while (1) {
+        led4 = !led4;
+        if (odroid.readable()) {
+            if (odroid.getc()=='s') {
+                //odroid.printf("S");
+                led1 = !led1;
+                //found start character
+                //odroid.putc ('!');
+                switch (odroid.getc()) {
+                    default:
+                        //didn't get an expected command
+                        odroid.putc('?');
+                        break;
+                    case 'F':
+                        led1=0;
+                        led2=1;
+                        led3=0;
+                        led4=0;
+                        payload = odroid.getc()<<8;
+                        payload = payload + odroid.getc();
+                        odroid.printf ("!");
+                        driveBy(payload,1);
+                        break;
+                    case 'B':
+                        led1=0;
+                        led2=1;
+                        led3=0;
+                        led4=1;
+                        payload = odroid.getc()<<8;
+                        payload = payload + odroid.getc();
+                        odroid.printf ("!");
+                        driveBy(payload,0);
+                        break;
+                    case 'R':
+                        led1=0;
+                        led2=1;
+                        led3=1;
+                        led4=0;
+                        payload = odroid.getc()<<8;
+                        payload = payload + odroid.getc();
+                        odroid.printf ("!");
+                        turnBy(payload,1);
+                        odroid.putc('d');
+                        break;
+                    case 'L':
+                        led1=0;
+                        led2=1;
+                        led3=1;
+                        led4=1;
+                        payload = odroid.getc()<<8;
+                        payload = payload + odroid.getc();
+                        odroid.printf ("!");
+                        turnBy(payload,0);
+                        odroid.putc('d');
+                        break;
+                    case 'T':
+                        odroid.printf ("!");
+                        currentPlatter = PLATTER_CR;
+                        movePlatter(currentPlatter);
+                        break;
+                    case '0':
+                        odroid.printf ("!");
+                        currentPlatter = PLATTER_0;
+                        movePlatter(currentPlatter);
+                        break;
+                    case '1':
+                        odroid.printf ("!");
+                        currentPlatter = PLATTER_90;
+                        movePlatter(currentPlatter);
+                        break;
+                    case '2':
+                        odroid.printf ("!");
+                        currentPlatter = PLATTER_180;
+                        movePlatter(currentPlatter);
+                        break;
+                    case '3':
+                        odroid.printf ("!");
+                        currentPlatter = PLATTER_270;
+                        movePlatter(currentPlatter);
+                        break;
+                    case 'P':
+                        odroid.printf ("!");
+                        setSuck(1);
+                        break;
+                    case 'p':
+                        odroid.printf ("!");
+                        setSuck(0);
+                        break;
+                    case 'G':
+                        odroid.printf("!");
+                        setSqueeze(true);
+                        break;
+                    case 'g':
+                        odroid.printf("!");
+                        setSqueeze(false);
+                        break;
+                    case 'A':
+                        payload = odroid.getc();
+                        odroid.printf("!");
+                        liftTo(payload);
+                        break;
+                    case 'H':
+                        payload = odroid.getc();
+                        odroid.printf("!");
+                        wristsTo(payload);
+                        break;
+                }
 
-        } 
-        else 
+            } else {
+                //didn't find start character
+                odroid.putc('?');
+            }
+        }
+        if (returnDriveFlag) 
         {
-            //didn't find start character
-            odroid.putc('?');
+            odroid.printf("d");
+            returnDriveFlag = 0;
+        }
+        if (returnLiftFlag)
+        {
+            odroid.printf("l");
+            returnLiftFlag = 0;
+        }
+        if (returnPlatterFlag)
+        {
+            odroid.printf("p");
+            returnPlatterFlag = 0;
+        }
+        if (returnSqueezeFlag)
+        {
+            odroid.printf("s");
+            returnSqueezeFlag = 0;
+        }
+        if (returnWristsFlag)
+        {
+            odroid.printf("w");
+            returnWristsFlag = 0;
+        }
+        if (flagDecelerate)
+        {
+            accelerationTimer.attach(&decrementStepsPerSecond, STEPS_TO_DECCELERATE);
+            flagDecelerate = 0;
         }
     }
 }
